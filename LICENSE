@@ -1,0 +1,70 @@
+LICENÇA DE USO RESTRITA - SERVICE MONITOR
+
+Copyright © 2025 - Todos os direitos reservados
+
+=============================================================================
+
+TERMOS E CONDIÇÕES DE USO
+
+Este software e sua documentação são fornecidos sob os seguintes termos:
+
+DEFINIÇÕES:
+- "Software" refere-se ao sistema Service Monitor e todos os arquivos relacionados
+- "Usuário" refere-se a qualquer pessoa que acesse ou utilize este software
+- "Uso comercial" refere-se ao uso para fins lucrativos ou comerciais
+
+DIREITOS CONCEDIDOS:
+O usuário tem permissão para:
+✓ Visualizar e estudar o código fonte
+✓ Executar o software em ambiente próprio (pessoal ou corporativo)
+✓ Usar para fins educacionais e de aprendizado
+✓ Realizar monitoramento de serviços em ambiente corporativo interno
+✓ Fazer adaptações para monitorar diferentes tipos de serviços (conforme documentado)
+
+RESTRIÇÕES:
+O usuário NÃO tem permissão para:
+✗ Modificar, editar, alterar ou adaptar o código fonte
+✗ Redistribuir o software (modificado ou não modificado)
+✗ Criar trabalhos derivados baseados neste software
+✗ Vender, licenciar ou sublicenciar o software
+✗ Usar para fins comerciais de redistribuição
+✗ Remover ou alterar avisos de copyright, licença ou autoria
+✗ Fazer engenharia reversa do software
+✗ Integrar partes do código em outros projetos
+
+CONDIÇÕES DE USO:
+1. O software deve ser usado "COMO ESTÁ" (AS IS)
+2. Créditos ao autor original devem ser mantidos em todos os arquivos
+3. Esta licença deve acompanhar todas as cópias do software
+4. O uso está sujeito às leis de direitos autorais aplicáveis
+
+ISENÇÃO DE RESPONSABILIDADE:
+Este software é fornecido "como está", sem garantias de qualquer tipo, expressas 
+ou implícitas, incluindo, mas não se limitando a garantias de comercialização, 
+adequação a um propósito específico e não violação. Em nenhum caso o autor será 
+responsável por quaisquer danos diretos, indiretos, incidentais, especiais, 
+exemplares ou consequenciais (incluindo, mas não se limitando a aquisição de 
+bens ou serviços substitutos; perda de uso, dados ou lucros; ou interrupção 
+de negócios) decorrentes do uso ou da incapacidade de usar este software.
+
+JURISDIÇÃO:
+Esta licença é regida pelas leis brasileiras. Qualquer disputa relacionada a 
+esta licença será resolvida nos tribunais competentes do Brasil.
+
+VIGÊNCIA:
+Esta licença é válida até ser rescindida. Seus direitos sob esta licença serão 
+rescindidos automaticamente sem aviso se você não cumprir qualquer termo desta 
+licença.
+
+CONTATO:
+Para questões sobre esta licença, entre em contato através do repositório do projeto.
+
+=============================================================================
+
+DESENVOLVIDO PARA MONITORAMENTO DO APACHE HTTP SERVER
+Sistema escalável para monitoramento de qualquer serviço Windows
+
+Data de criação: Dezembro de 2024
+Data de publicação: Agosto de 2025
+Data de última atualização: Agosto de 2025
+Versão da licença: 1.0

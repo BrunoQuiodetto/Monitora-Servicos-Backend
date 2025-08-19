@@ -1,0 +1,9 @@
+config.psd1
+senha.txt
+senhadb.txt
+src/*.png
+src/*.jpg
+src/*.jpeg
+src/*.gif
+*_log.txt
+.*/
