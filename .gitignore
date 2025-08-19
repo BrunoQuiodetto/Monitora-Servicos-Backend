@@ -7,3 +7,4 @@ src/*.jpeg
 src/*.gif
 *_log.txt
 .*/
+templates/*.html
