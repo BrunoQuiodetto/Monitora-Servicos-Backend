@@ -10,7 +10,7 @@ param (
    [string]$EmailPassword,
    [string[]]$EmailRecipients,
 
-   [string]$ProcessName = "\MonitoraApache"
+   [string]$ProcessName = "MonitoraApache"
 )
 
 # Preenche parametros caso não forem passados (senha só é preenchida se for o mesmo usuario que criptografou)
