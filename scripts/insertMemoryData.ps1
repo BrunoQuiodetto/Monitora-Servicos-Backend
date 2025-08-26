@@ -82,14 +82,10 @@ INSERT INTO Z111020 (
         # Executa o comando
         $RowsAffected = Invoke-SQLCommand -Connection $Connection -Query $InsertQuery
         
-        if ($RowsAffected -gt 0) {
-            Write-Host "Informações de memória inseridas com sucesso na tabela Z111" -ForegroundColor Green
-            
+        if ($RowsAffected -gt 0) { 
             # Log da operação
             $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\apacheMonitor_log.txt"
             $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        } else {
-            Write-Warning "Nenhuma linha foi inserida na tabela Z111"
         }
         
         # Fecha a conexão
@@ -97,8 +93,6 @@ INSERT INTO Z111020 (
     }
 }
 catch {
-    Write-Error "Erro ao inserir dados na tabela Z111: $_"
-    
     # Log do erro
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\apacheMonitor_log.txt"

@@ -1,26 +1,27 @@
 # 🔍 Service Monitor - Sistema de Monitoramento de Memória
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat&logo=powershell&logoColor=white)
-![Apache](https://img.shields.io/badge/Apache-D22128?style=flat&logo=apache&logoColor=white)
 ![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=flat&logo=microsoft-sql-server&logoColor=white)
 
-Um sistema completo de monitoramento em tempo real do consumo de memória do Apache HTTP Server (httpd), desenvolvido em PowerShell para ambientes Windows.
+Um sistema completo de monitoramento em tempo real do consumo de memória de múltiplos processos (Apache, Node.js e outros), desenvolvido em PowerShell para ambientes Windows.
 
 ## 📋 Funcionalidades
 
-- **Monitoramento Contínuo**: Verifica o consumo de memória do processo Apache em tempo real
-- **Alertas Inteligentes**: Sistema de notificações por e-mail com thresholds configuráveis
-- **Reinício Automático**: Capacidade de reiniciar o serviço Apache quando necessário
-- **Registro de Logs**: Histórico completo de eventos e ações do sistema
+- **Monitoramento Contínuo**: Verifica o consumo de memória de múltiplos processos simultaneamente em tempo real
+- **Múltiplos Serviços**: Suporte nativo para Apache, Node.js e qualquer processo Windows
+- **Alertas Inteligentes**: Sistema de notificações por e-mail com thresholds configuráveis por processo
+- **Reinicialização Programada**: Reinício automático aos domingos às 3h da manhã
+- **Suporte a Serviços Windows**: Pode reiniciar tanto processos quanto serviços Windows
+- **Registro de Logs**: Histórico completo de eventos e ações do sistema por processo
 - **Integração com Banco de Dados**: Armazenamento de métricas no SQL Server
 - **Templates HTML**: E-mails personalizados com design profissional
-- **Relatórios**: Consultas e relatórios de performance do sistema
+- **Configuração Flexível**: Lista de processos configurável via arquivo ou parâmetros
 
 ## 📋 Pré-requisitos
 
 - Windows Server 2008 R2 ou superior / Windows 7 ou superior
 - PowerShell 2.0 ou superior
-- Apache HTTP Server (httpd)
+- Processos a monitorar (Apache HTTP Server, Node.js, etc.)
 - Task Scheduler (incluído no Windows)
 - SQL Server (opcional, para relatórios)
 - Servidor SMTP configurado
@@ -28,25 +29,25 @@ Um sistema completo de monitoramento em tempo real do consumo de memória do Apa
 ## 🏗️ Estrutura do Projeto
 
 ```
-monitoraApache/
-├── conf/                          # Configurações
-│   ├── config.psd1               # Configurações principais
-│   ├── senha.txt                 # Senha de e-mail (criptografada)
-│   └── senhadb.txt              # Senha do banco de dados
-├── log/                          # Logs do sistema
-│   └── apacheMonitor_log.txt    # Log principal
-├── scripts/                      # Scripts PowerShell
-│   ├── verificaMemoria.ps1      # Script principal de monitoramento
-│   ├── reiniciaApache.ps1       # Script de reinício do Apache
-│   ├── database-connection.ps1  # Conexão com banco de dados
-│   ├── insertMemoryData.ps1     # Inserção de dados de memória
-│   ├── insertRestartData.ps1    # Inserção de dados de reinício
-│   ├── queryDatabaseReports.ps1 # Relatórios do banco
+serviceMonitor/
+├── conf/                           # Configurações
+│   ├── config.psd1                 # Configurações de funcionamento
+│   ├── senha.txt                   # Senha de e-mail
+│   └── senhadb.txt                 # Senha do banco de dados
+├── log/                            # Logs do sistema
+│   └── serviceMonitor_log.txt      # Log principal (múltiplos processos)
+├── scripts/                        # Scripts PowerShell
+│   ├── verificaMemoria.ps1         # Script de monitoramento
+│   ├── reiniciaServico.ps1         # Script de reinício
+│   ├── database-connection.ps1     # Conexão com banco de dados
+│   ├── insertMemoryData.ps1        # Inserção de dados de memória
+│   ├── insertRestartData.ps1       # Inserção de dados de reinício
+│   ├── queryDatabaseReports.ps1    # Relatórios do banco
 │   ├── createDatabaseStructure.ps1 # Criação da estrutura do BD
-│   └── atualizaMonitoramento.ps1   # Atualizações do sistema
-├── src/                          # Recursos
-│   └── logo.png           # Logo para e-mails
-└── templates/                    # Templates de e-mail
+│   └── atualizaMonitoramento.ps1   # Atualizações do sistema de monitoramento
+├── src/                            # Recursos
+│   └── logo.png                    # Logo para e-mails
+└── templates/                      # Templates de e-mail
     ├── emailMonitor_alerts.html
     ├── emailMonitor_restart.html
     ├── emailMonitor_restartForce.html
@@ -57,8 +58,7 @@ monitoraApache/
 ### 🚨 Considerações Importantes
 
 ### Execução Contínua
-- O script `verificaMemoria.ps1` foi projetado para executar em **loop infinito**
-- Ele só para quando o processo é interrompido manualmente ou o sistema é reiniciado
+- O script `verificaMemoria.ps1` foi projetado para executar em **loop infinito**, por isso, por padrão, em caso de modificação do código de monitoramento, é necessário utilizar o script `atualizaMonitoramento.ps1`
 - **Não configure múltiplas execuções** da mesma tarefa simultaneamente
 
 ### Monitoramento de Performance
@@ -78,11 +78,11 @@ O sistema utiliza um algoritmo inteligente de thresholds:
 
 ### Métricas Coletadas
 
-- Consumo de memória do processo Apache (MB)
-- Porcentagem de uso de memória
+- Consumo de memória individual por processo (MB)
+- Porcentagem de uso de memória por processo
 - Memória total disponível no sistema
-- Memória disponível para a aplicação
-- Timestamps de eventos
+- Timestamps de eventos por processo
+- Controle independente de thresholds por processo
 
 ### Templates de E-mail
 
@@ -108,18 +108,37 @@ Edite o arquivo `conf/config.psd1` com suas configurações:
         'admin@suaempresa.com',
         'ti@suaempresa.com'
     )
-    LogFile         = '..\log\apacheMonitor_log.txt'
+    LogFile         = '..\log\serviceMonitor_log.txt'
     SenhaPath       = '..\conf\senha.txt'
     EmailAlias      = 'sistema@suaempresa.com'
     EmailAliasName  = 'Sistema de Monitoramento'
     
+    # Lista de processos a monitorar (NOVO)
+    ProcessesToMonitor = @('httpd', 'node')  # Apache e Node.js
+    
+    # Configurações de reinicialização automática (NOVO)
+    AutoRestartEnabled = $true          # Habilitar reinicialização automática aos domingos
+    LastSundayRestart = ''              # Data da última reinicialização (automática)
+    
+    # Mapeamento de processos para serviços Windows (NOVO)
+    ProcessServiceMap = @{
+        'httpd' = 'Apache'     # Nome do serviço Windows para Apache
+        'node' =  ''           # Node.js normalmente não é serviço Windows
+    }
+    
     # Configurações do Banco de Dados
-    DatabaseServer      = '192.168.1.100'
-    DatabaseName        = 'MonitoringDB'
-    DatabaseUser        = 'monitor_user'
+    DatabaseServer      = '192.168.1.100' # Servidor DB
+    DatabaseName        = 'MonitoringDB'  # Nome DB
+    DatabaseUser        = 'monitor_user'  # Seu usuario DB
     DatabasePasswordPath = '..\conf\senhadb.txt'
 }
 ```
+
+**📌 Configuração de Processos:**
+- **Via Config**: Edite `ProcessesToMonitor` no arquivo `config.psd1`
+- **Via Parâmetro**: Use `-ProcessNames @('httpd', 'node', 'java')` ao executar o script
+
+- **!Prioridade**: Parâmetros sobrescrevem o arquivo de configuração
 
 ### 2. Configuração de Senhas
 
@@ -138,84 +157,66 @@ Execute o script para criar as tabelas necessárias:
 ## 🚀 Uso
 
 ### Configuração no Task Scheduler (Recomendado)
+O sistema foi projetado para executar continuamente através do Task Scheduler do Windows. Consulte o guia de configuração em [Configurar Tasks](ConfigurarTasks). 
 
-O sistema foi projetado para executar continuamente através do Task Scheduler do Windows:
-
-#### 1.1. Criação da Tarefa no Task Scheduler
-
-**Via Interface Gráfica:**
-
-1. Abra o **Task Scheduler** (`taskschd.msc`)
-2. Clique em **"Create Task..."** (Criar Tarefa...)
-3. Configure as abas conforme abaixo:
-
-**Aba General:**
-- Name: `Apache Memory Monitor`
-- Description: `Monitoramento contínuo de memória do Apache HTTP Server`
-- ✅ Run whether user is logged on or not
-- ✅ Run with highest privileges
-- Configure for: `Windows 7, Windows Server 2008 R2` (ou superior)
-
-**Aba Triggers:**
-- Click **New...**
-- Begin the task: `At startup`
-- ✅ Enabled
-
-**Aba Actions:**
-- Click **New...**
-- Action: `Start a program`
-- Program/script: `powershell.exe`
-- Add arguments: `-ExecutionPolicy Bypass -File "U:\monitoraApache\scripts\verificaMemoria.ps1"`
-- Start in: `U:\monitoraApache\scripts`
-
-**Aba Conditions:**
-- ❌ Start the task only if the computer is on AC power
-- ❌ Stop if the computer switches to battery power
-- ✅ Wake the computer to run this task
-
-**Aba Settings:**
-- ✅ Allow task to be run on demand
-- ❌ Run task as soon as possible after a scheduled start is missed
-- ❌ If the task fails, restart every: (deixar desmarcado)
-- ❌ Stop the task if it runs longer than: (deixar desmarcado)
-- If the running task does not end when requested: `Do not start a new instance`
-
-#### 1.2. Criação via PowerShell (Método Alternativo)
-
-```powershell
-# Criar tarefa programada via PowerShell
-$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -File 'U:\monitoraApache\scripts\verificaMemoria.ps1'" -WorkingDirectory "U:\monitoraApache\scripts"
-
-$Trigger = New-ScheduledTaskTrigger -AtStartup
-
-$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Days 365)
-
-$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-
-Register-ScheduledTask -TaskName "Apache Memory Monitor" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Monitoramento contínuo de memória do Apache HTTP Server"
-```
-
-#### 2. Verificação da Tarefa
+#### Verificação da Tarefa
 
 ```powershell
 # Verificar se a tarefa foi criada
-Get-ScheduledTask -TaskName "Apache Memory Monitor"
+Get-ScheduledTask -TaskName "\MonitoraApache"
 
 # Executar a tarefa manualmente para teste
-Start-ScheduledTask -TaskName "Apache Memory Monitor"
+Start-ScheduledTask -TaskName "\MonitoraApache"
 
 # Verificar status da tarefa
-Get-ScheduledTask -TaskName "Apache Memory Monitor" | Get-ScheduledTaskInfo
+Get-ScheduledTask -TaskName "\MonitoraApache" | Get-ScheduledTaskInfo
 ```
 
-### Reinício Manual do Apache
+### Monitoramento Manual (Para Testes)
 
 ```powershell
-# Reinício forçado
-.\scripts\reiniciaApache.ps1 -NomeUsuario "Admin" -Motivo "Manutenção programada"
+# Executar com configurações do arquivo config.psd1
+.\scripts\verificaMemoria.ps1
+
+# Executar monitorando processos específicos
+.\scripts\verificaMemoria.ps1 -ProcessNames @("httpd", "node", "java")
+
+# Executar com threshold personalizado
+.\scripts\verificaMemoria.ps1 -ThresholdStep 1000
+
+# Executar com processos e threshold customizados
+.\scripts\verificaMemoria.ps1 -ProcessNames @("httpd", "node") -ThresholdStep 750
+```
+
+### Reinício Manual de Serviços
+
+```powershell
+# Reinício forçado do Apache
+.\scripts\reiniciaServico.ps1 -ProcessName "httpd" -NomeUsuario "Admin" -Motivo "Manutenção programada"
+
+# Reinício do Node.js
+.\scripts\reiniciaServico.ps1 -ProcessName "node" -NomeUsuario "Admin" -Motivo "Atualização de aplicação"
+
+# Reinício usando serviço Windows (se configurado no ProcessServiceMap)
+.\scripts\reiniciaServico.ps1 -ProcessName "httpd" -ServiceName "Apache2.4" -NomeUsuario "Admin" -Motivo "Manutenção"
 
 # Teste (sem executar ação)
-.\scripts\reiniciaApache.ps1 -NomeUsuario "Admin" -Motivo "Teste" -TipoReinicio "Teste"
+.\scripts\reiniciaServico.ps1 -ProcessName "httpd" -NomeUsuario "Admin" -Motivo "Teste" -TipoReinicio "Teste"
+```
+
+### Reinicialização Automática
+
+O sistema possui reinicialização automática programada:
+
+- **Quando**: Todos os domingos às 3h da manhã
+- **Processos**: Todos os processos listados em `ProcessesToMonitor`
+- **Ativação**: Pode ser habilitada/desabilitada via `AutoRestartEnabled` no config
+- **Logs**: Registra todas as reinicializações automáticas
+
+**Para desabilitar:**
+```powershell
+# No config.psd1
+AutoRestartEnabled = $false
 ```
 
 ### Consulta de Relatórios
@@ -242,19 +243,25 @@ Get-ScheduledTask -TaskName "Apache Memory Monitor" | Get-ScheduledTaskInfo
 
 ### verificaMemoria.ps1
 
-| Parâmetro       | Tipo   | Padrão  | Descrição                    |
-| --------------- | ------ | ------- | ---------------------------- |
-| `ProcessName`   | string | "httpd" | Nome do processo a monitorar |
-| `ThresholdStep` | int    | 500     | Incremento do threshold (MB) |
+| Parâmetro       | Tipo     | Padrão                  | Descrição                                    |
+| --------------- | -------- | ----------------------- | -------------------------------------------- |
+| `ProcessNames`  | string[] | do config.psd1          | Lista de processos a monitorar               |
+| `ThresholdStep` | int      | 500                     | Incremento do threshold (MB)                 |
+| `SMTPServer`    | string   | do config.psd1          | Servidor SMTP                                |
+| `SMTPPort`      | int      | do config.psd1          | Porta SMTP                                   |
+| `EmailSender`   | string   | do config.psd1          | E-mail remetente                             |
+| `EmailPassword` | string   | do config.psd1          | Senha do e-mail                              |
+| `EmailRecipients` | array  | do config.psd1          | Lista de destinatários                       |
 
-### reiniciaApache.ps1
+### reiniciaServico.ps1
 
-| Parâmetro      | Tipo   | Obrigatório | Padrão    | Descrição                               |
-| -------------- | ------ | ----------- | --------- | --------------------------------------- |
-| `NomeUsuario`  | string | Sim         |           | Nome do usuário que solicita o reinício |
-| `Motivo`       | string | Sim         |           | Motivo do reinício                      |
-| `TipoReinicio` | string | Não         | "Forçado" | "Forçado", "Programado" ou "Teste"      |
-| `ProcessName`  | string | Não         | "httpd"   | Nome do processo a monitorar            |
+| Parâmetro      | Tipo   | Obrigatório | Padrão    | Descrição                                      |
+| -------------- | ------ | ----------- | --------- | ---------------------------------------------- |
+| `ProcessName`  | string | Não         | "httpd"   | Nome do processo a reiniciar                   |
+| `ServiceName`  | string | Não         | auto      | Nome do serviço Windows (auto-detectado)      |
+| `NomeUsuario`  | string | Sim         |           | Nome do usuário que solicita o reinício       |
+| `Motivo`       | string | Sim         |           | Motivo do reinício                             |
+| `TipoReinicio` | string | Não         | "Forçado" | "Forçado", "Programado" ou "Teste"             |
 
 ## ️🛡️ Segurança
 
@@ -274,12 +281,13 @@ O sistema integra com SQL Server para:
 
 ## 📝 Logs
 
-Os logs são gravados em `log/apacheMonitor_log.txt` com formato:
+Os logs são gravados em `log/serviceMonitor_log.txt` com formato que identifica cada processo:
 
 ```
-2025-08-19 14:30:00 - httpd consumindo 1250.50 MB. NextNotificationLevel: 1500. LastNotifiedLevel: 1000. NotificationReason: upper
-2025-08-19 14:31:00 - Notificação de alerta enviada para admin@empresa.com
-2025-08-19 14:32:00 - Reinício solicitado por Admin. Motivo: Alto consumo de memória
+2025-08-21 14:30:00 - [httpd] consumindo 1250.50 MB. NextNotificationLevel: 1500. LastNotifiedLevel: 1000. NotificationReason: upper
+2025-08-21 14:30:15 - [node] consumindo 850.25 MB. NextNotificationLevel: 1000. LastNotifiedLevel: 500. NotificationReason: upper
+2025-08-21 14:31:00 - [httpd] Alerta de memória enviado. Consumo: 1520.75 MB
+2025-08-21 14:32:00 - [node] Processo não encontrado em execução.
 ```
 
 ## 🎢 Escalabilidade
@@ -339,13 +347,14 @@ Embora este sistema tenha sido **desenvolvido inicialmente para monitoramento do
 - Verifique as credenciais nos arquivos `senha.txt`
 - Confirme as configurações no `config.psd1`
 
-**3. Processo Apache não encontrado:**
-- Verifique se o nome do processo está correto (padrão: "httpd")
-- Confirme se o Apache está em execução: `Get-Process -Name httpd`
+**3. Processo não encontrado:**
+- Verifique se o nome do processo está correto (ex: "httpd", "node")
+- Confirme se o processo está em execução: `Get-Process -Name httpd,node`
+- Verifique a lista em `ProcessesToMonitor` no config.psd1
 
 ### Logs e Diagnóstico
 
-- **Logs do sistema**: `log/apacheMonitor_log.txt`
+- **Logs do sistema**: `log/serviceMonitor_log.txt`
 - **Logs do Task Scheduler**: Event Viewer → Windows Logs → System
 - **Logs de aplicação**: Event Viewer → Applications and Services Logs
 
@@ -366,33 +375,14 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
 # Ou usar bypass na tarefa (já incluído nos exemplos acima)
 ```
 
-### Gerenciar a Tarefa do Task Scheduler
-
-```powershell
-# Parar o monitoramento
-Stop-ScheduledTask -TaskName "Apache Memory Monitor"
-
-# Iniciar o monitoramento
-Start-ScheduledTask -TaskName "Apache Memory Monitor"
-
-# Desabilitar temporariamente
-Disable-ScheduledTask -TaskName "Apache Memory Monitor"
-
-# Reabilitar
-Enable-ScheduledTask -TaskName "Apache Memory Monitor"
-
-# Remover a tarefa (se necessário)
-Unregister-ScheduledTask -TaskName "Apache Memory Monitor" -Confirm:$false
-```
-
 ### Logs e Troubleshooting
 
 ```powershell
 # Verificar logs do Task Scheduler
-Get-WinEvent -LogName "Microsoft-Windows-TaskScheduler/Operational" | Where-Object {$_.Message -like "*Apache Memory Monitor*"} | Select-Object -First 10
+Get-WinEvent -LogName "Microsoft-Windows-TaskScheduler/Operational" | Where-Object {$_.Message -like "*Service Memory Monitor*"} | Select-Object -First 10
 
 # Verificar logs do sistema
-Get-Content "U:\monitoraApache\log\apacheMonitor_log.txt" -Tail 20
+Get-Content "U:\monitoraApache\log\serviceMonitor_log.txt" -Tail 20
 
 # Testar conectividade SMTP
 Test-NetConnection -ComputerName "seu.servidor.smtp.com" -Port 587
@@ -402,11 +392,11 @@ Test-NetConnection -ComputerName "seu.servidor.smtp.com" -Port 587
 
 Para atualizar o sistema de maneira padrão quando houver alguma modificação no script :
 
-| Parâmetro      | Tipo   | Obrigatório | Padrão            | Descrição                                                               |
-| -------------- | ------ | ----------- | ----------------- | ----------------------------------------------------------------------- |
-| `NomeUsuario`  | string | Sim         |                   | Nome do usuário que solicita o reinício do serviço                      |
-| `Motivo`       | string | Sim         |                   | O que foi modificado na atualização                                     |
-| `$ProcessName` | string | Não         | "\MonitoraApache" | Nome que foi definido na [criação do serviço](#1-configuração-inicial) |
+| Parâmetro      | Tipo   | Obrigatório | Padrão            | Descrição                                                       |
+| -------------- | ------ | ----------- | ----------------- | --------------------------------------------------------------- |
+| `NomeUsuario`  | string | Sim         |                   | Nome do usuário que solicita o reinício do serviço              |
+| `Motivo`       | string | Sim         |                   | O que foi modificado na atualização                             |
+| `$ProcessName` | string | Não         | "\MonitoraApache" | Nome que foi definido na [criação do serviço](ConfigurarTasks) |
 
 ```powershell
 .\scripts\atualizaMonitoramento.ps1 -

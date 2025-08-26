@@ -91,24 +91,18 @@ INSERT INTO Z112020 (
         # Executa o comando
         $RowsAffected = Invoke-SQLCommand -Connection $Connection -Query $InsertQuery
         
-        if ($RowsAffected -gt 0) {
-            Write-Host "Informações de reinício inseridas com sucesso na tabela Z112" -ForegroundColor Green
-            
+        if ($RowsAffected -gt 0) { 
             # Log da operação
             $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\apacheMonitor_log.txt"
             $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             # Add-Content -Path $LogFile -Value "$Timestamp - BANCO: Dados de reinício inseridos na Z112 - Serviço: $ProcessName, Tipo: $TipoCode, Solicitante: $RequestedBy, Sistema: $SystemRestart"
-        } else {
-            Write-Warning "Nenhuma linha foi inserida na tabela Z112"
         }
         
         # Fecha a conexão
         Close-SQLConnection -Connection $Connection
     }
 }
-catch {
-    Write-Error "Erro ao inserir dados na tabela Z112: $_"
-    
+catch {  
     # Log do erro
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\apacheMonitor_log.txt"
