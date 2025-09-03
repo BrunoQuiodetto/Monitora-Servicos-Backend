@@ -27,6 +27,9 @@ if (-not $EmailPassword) {
     $EmailPassword = Get-Content (Join-Path -Path $ScriptDir -ChildPath $config.SenhaPath) 
 }
 
+# Configuração de intervalo de notificações
+$EmailNotificationIntervalHours = if ($config.EmailNotificationIntervalHours) { $config.EmailNotificationIntervalHours } else { 4 }
+
 # Define processos a monitorar: parâmetro tem prioridade sobre config
 if ($ProcessNames.Count -eq 0) {
     $ProcessNames = $config.ProcessesToMonitor
@@ -35,6 +38,7 @@ if ($ProcessNames.Count -eq 0) {
 # Hash table para controlar thresholds de cada processo
 $ProcessThresholds = @{}
 $ProcessLastNotificationTime = @{}
+$ProcessLastMemoryValue = @{}  # Nova variável para armazenar último valor de memória
 
 # Controle para reinicialização automática aos domingos às 3h
 $LastSundayRestart = [datetime]::MinValue
@@ -55,6 +59,7 @@ foreach ($ProcessName in $ProcessNames) {
         FirstRun = $true
     }
     $ProcessLastNotificationTime[$ProcessName] = Get-Date
+    $ProcessLastMemoryValue[$ProcessName] = 0
 }
 
 # Enviar e-mail informando que o monitoramento foi iniciado
@@ -131,6 +136,7 @@ while ($true) {
     foreach ($ProcessName in $ProcessNames) {
         $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
         $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $ShouldSendIntervalEmail = $false  # Inicializar controle de e-mail por intervalo
         
         if ($processes) {
             # Calcula memória total do processo
@@ -141,12 +147,14 @@ while ($true) {
             $TotalSystemMemoryMB = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1MB, 2)
             $AvailableMemoryMB = [math]::Round((Get-WmiObject Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes, 2)
             $TotalUsedMemoryMB = $TotalSystemMemoryMB - $AvailableMemoryMB
-            $TotalUsedMemoryOtherAppsMB = $TotalUsedMemoryMB - $TotalMemoryMB
-            $TotalAvailableForAppMB = $TotalSystemMemoryMB - $TotalUsedMemoryOtherAppsMB
-            $MemoryPercentage = [math]::Round(($TotalMemoryMB / $TotalAvailableForAppMB) * 100, 2)
+            
+            # Cálculos de percentuais para a nova mensagem
+            $ProcessMemoryPercentageOfSystem = [math]::Round(($TotalMemoryMB / $TotalSystemMemoryMB) * 100, 2)
+            $SystemUsedMemoryPercentage = [math]::Round(($TotalUsedMemoryMB / $TotalSystemMemoryMB) * 100, 2)
             
             # Controle de thresholds por processo
             $processControl = $ProcessThresholds[$ProcessName]
+            $lastMemoryValue = $ProcessLastMemoryValue[$ProcessName]
             
             if ($processControl.FirstRun) {
                 $processControl.NextNotificationLevel = ($TotalMemoryMB + $ThresholdStep)
@@ -157,11 +165,27 @@ while ($true) {
             }
             elseif ($TotalMemoryMB -lt $processControl.NextNotificationLevel) {
                 $elapsed = (Get-Date) - $ProcessLastNotificationTime[$ProcessName]
-                if ($elapsed.TotalHours -ge 1) {
-                    $processControl.NextNotificationLevel = [math]::Round($TotalMemoryMB, 2)
+                
+                # Verifica se deve enviar e-mail por intervalo de tempo (quando não ultrapassa limite)
+                if ($elapsed.TotalHours -ge $EmailNotificationIntervalHours) {
+                    # Determina o tipo de notificação baseado na comparação com o último valor
+                    if ($TotalMemoryMB -gt $lastMemoryValue -and $lastMemoryValue -gt 0) {
+                        $processControl.NotificationReason = "warning"  # Amarelo: menor que limite mas maior que anterior
+                    } else {
+                        $processControl.NotificationReason = "lower"    # Verde: menor que limite e menor que anterior
+                    }
+                    
                     $ProcessLastNotificationTime[$ProcessName] = Get-Date
-                    $processControl.NotificationReason = "lower"
-                    Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] NextNotificationLevel ajustado para $($processControl.NextNotificationLevel) MB após 1 hora sem ultrapassar."
+                    Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Enviando notificação por intervalo ($EmailNotificationIntervalHours horas). Motivo: $($processControl.NotificationReason)"
+                    
+                    # Marcar para envio de e-mail
+                    $ShouldSendIntervalEmail = $true
+                }
+                
+                # Ajustar threshold após o mesmo intervalo configurado (lógica corrigida)
+                if ($elapsed.TotalHours -ge $EmailNotificationIntervalHours) {
+                    $processControl.NextNotificationLevel = [math]::Round($TotalMemoryMB, 2)
+                    Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] NextNotificationLevel ajustado para $($processControl.NextNotificationLevel) MB após $EmailNotificationIntervalHours hora(s) sem ultrapassar."
                 }
             }
             else {
@@ -169,22 +193,30 @@ while ($true) {
                 $processControl.NotificationReason = "upper"
             }
             
+            # Atualizar último valor de memória para comparação futura
+            $ProcessLastMemoryValue[$ProcessName] = $TotalMemoryMB
+            
             # Log do status atual
-            Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] consumindo $TotalMemoryMB MB. NextNotificationLevel: $($processControl.NextNotificationLevel). LastNotifiedLevel: $($processControl.LastNotifiedLevel). NotificationReason: $($processControl.NotificationReason). SistemaTotal: $TotalSystemMemoryMB MB. SistemaDisponivel: $AvailableMemoryMB MB. SistemaUsado: $TotalUsedMemoryMB MB"
+            Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] consumindo $TotalMemoryMB MB ($ProcessMemoryPercentageOfSystem% do sistema). NextNotificationLevel: $($processControl.NextNotificationLevel). LastNotifiedLevel: $($processControl.LastNotifiedLevel). NotificationReason: $($processControl.NotificationReason). SistemaTotal: $TotalSystemMemoryMB MB. SistemaUsado: $TotalUsedMemoryMB MB ($SystemUsedMemoryPercentage%)"
             
             # Inserir dados de memória no banco
             try {
                 $InsertMemoryScript = Join-Path -Path $ScriptDir -ChildPath "insertMemoryData.ps1"
-                & $InsertMemoryScript -ProcessName $ProcessName -MemoryUsageMB $TotalMemoryMB -MemoryAvailableMB $TotalAvailableForAppMB -MemoryPercentage $MemoryPercentage -Reason $processControl.NotificationReason
+                & $InsertMemoryScript -ProcessName $ProcessName -MemoryUsageMB $TotalMemoryMB -MemoryAvailableMB $TotalSystemMemoryMB -MemoryPercentage $ProcessMemoryPercentageOfSystem -Reason $processControl.NotificationReason
             }
             catch {
                 Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Erro ao inserir dados no banco: $_"
             }
             
             # Verificar se precisa enviar notificação
-            if ($TotalMemoryMB -ge $processControl.NextNotificationLevel -and $processControl.NextNotificationLevel -ne $processControl.LastNotifiedLevel) {
-                $processControl.LastNotifiedLevel = $processControl.NextNotificationLevel
-                $processControl.NextNotificationLevel = ($TotalMemoryMB + $ThresholdStep)
+            $ShouldSendThresholdEmail = ($TotalMemoryMB -ge $processControl.NextNotificationLevel -and $processControl.NextNotificationLevel -ne $processControl.LastNotifiedLevel)
+            
+            if ($ShouldSendThresholdEmail -or $ShouldSendIntervalEmail) {
+                # Se for alerta por threshold, atualizar os controles
+                if ($ShouldSendThresholdEmail) {
+                    $processControl.LastNotifiedLevel = $processControl.NextNotificationLevel
+                    $processControl.NextNotificationLevel = ($TotalMemoryMB + $ThresholdStep)
+                }
                 
                 # Enviar e-mail de alerta
                 try {
@@ -195,18 +227,27 @@ while ($true) {
                         $MailMessage.To.Add($recipient)
                     }
                     
-                    $Subject = "ALERTA: $ProcessName - Consumo de Memória Elevado"
+                    # Definir assunto baseado no tipo de alerta
+                    if ($ShouldSendThresholdEmail) {
+                        $Subject = "ALERTA: $ProcessName - Consumo de Memória Elevado"
+                    } else {
+                        $Subject = "INFO: $ProcessName - Status de Memória (Intervalo $EmailNotificationIntervalHours h)"
+                    }
+                    
                     $TemplatePath_alert = Join-Path -Path $ScriptDir -ChildPath "..\templates\emailMonitor_alerts.html"
                     
                     $Body = [System.IO.File]::ReadAllText($TemplatePath_alert)
                     $Body = $Body -replace "{{PROCESS_NAME}}", $ProcessName
                     $Body = $Body -replace "{{TOTAL_MEMORY}}", $TotalMemoryMB
-                    $Body = $Body -replace "{{MEMORY_PERCENTAGE}}", $MemoryPercentage
-                    $Body = $Body -replace "{{TOTAL_SYSTEM_MEMORY}}", $TotalAvailableForAppMB
-                    $Body = $Body -replace "{{THRESHOLD_MB}}", $processControl.LastNotifiedLevel
                     $Body = $Body -replace "{{TIMESTAMP}}", $Timestamp
                     $Body = $Body -replace "{{NEXTLIMIT}}", $processControl.NextNotificationLevel
                     $Body = $Body -replace "{{NOTIFICATIONREASON}}", $processControl.NotificationReason
+                    
+                    # Novas variáveis para a mensagem melhorada
+                    $Body = $Body -replace "{{TOTAL_SYSTEM_MEMORY_MB}}", $TotalSystemMemoryMB
+                    $Body = $Body -replace "{{TOTAL_USED_MEMORY_MB}}", $TotalUsedMemoryMB
+                    $Body = $Body -replace "{{PROCESS_MEMORY_PERCENT_SYSTEM}}", $ProcessMemoryPercentageOfSystem
+                    $Body = $Body -replace "{{SYSTEM_USED_MEMORY_PERCENT}}", $SystemUsedMemoryPercentage
 
                     $AlternateView = [System.Net.Mail.AlternateView]::CreateAlternateViewFromString($Body, [System.Text.Encoding]::UTF8, "text/html")
                     $LinkedResource = New-Object System.Net.Mail.LinkedResource($ImagePath, "image/png")
@@ -217,7 +258,12 @@ while ($true) {
                     $MailMessage.SubjectEncoding = [System.Text.Encoding]::UTF8
                     
                     $SMTPClient.Send($MailMessage)
-                    Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Alerta de memória enviado. Consumo: $TotalMemoryMB MB"
+                    
+                    if ($ShouldSendThresholdEmail) {
+                        Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Alerta de memória enviado (threshold). Consumo: $TotalMemoryMB MB"
+                    } else {
+                        Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Notificação de status enviada (intervalo). Consumo: $TotalMemoryMB MB. Motivo: $($processControl.NotificationReason)"
+                    }
                     
                     # Limpar recursos
                     $MailMessage.Dispose()

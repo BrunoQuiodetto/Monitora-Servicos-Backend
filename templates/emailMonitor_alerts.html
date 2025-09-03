@@ -18,6 +18,7 @@
 				a:link, a:visited{ text-decoration: none; color: #f00; }
                 .upper{color: #d9534f}
                 .lower{color: #5cb85c}
+                .warning{color: #f0ad4e}
 			</style>
 		</head>
 		<body>
@@ -30,11 +31,17 @@
 					<br/><br/>
 					<p class='p3'>
 						<h2 style="color: #d9534f;">🚨 Alerta de Monitoramento 🚨</h2>
-                  <p style="font-size: 16px; color: #333;">O serviço de monitoramento detectou o seguinte acumulo de memória no processo <strong>{{PROCESS_NAME}}</strong>.</p>
-                  <p style="font-size: 18px;" class="{{NOTIFICATIONREASON}}">
-                     <strong>Consumo Atual:</strong> {{TOTAL_MEMORY}} MB ({{MEMORY_PERCENTAGE}}%
-                     <span style="font-size: 13px;"> de {{TOTAL_SYSTEM_MEMORY}}MB disponíveis no sistema</span>).
-                  </p>
+                  <p style="font-size: 16px; color: #333;">O serviço de monitoramento detectou o seguinte consumo de memória no processo <strong>{{PROCESS_NAME}}</strong>.</p>
+                  
+                  <div style="font-size: 16px; margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">
+                     <p style="margin: 5px 0;" class="{{NOTIFICATIONREASON}}">
+                        <strong>📊 Consumo atual do serviço:</strong> {{TOTAL_MEMORY}} MB ({{PROCESS_MEMORY_PERCENT_SYSTEM}}% da memória total do sistema).
+                     </p>
+                     <p style="margin: 5px 0; color: #6c757d;">
+                        <strong>🖥️ Memória total em uso no sistema:</strong> {{TOTAL_USED_MEMORY_MB}} MB ({{SYSTEM_USED_MEMORY_PERCENT}}% de {{TOTAL_SYSTEM_MEMORY_MB}} MB).
+                     </p>
+                  </div>
+                  
                   <br>
                             Para maior detalhamento e ações acesse o link <a href='localhost/monitoraServicos/'>Monitor de Serviços</a>
                   <p style="font-size: 14px; color: #666;">

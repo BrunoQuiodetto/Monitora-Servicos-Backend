@@ -1,7 +1,9 @@
 # 🔍 Service Monitor - Sistema de Monitoramento de Memória
 
-![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat&logo=powershell&logoColor=white)
-![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=flat&logo=microsoft-sql-server&logoColor=white)
+[![PowerShell](https://img.shields.io/badge/PowerShell-2.0%2B-blue?style=flat&logo=powershell&logoColor=white)](https://docs.microsoft.com/powershell/)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=flat&logo=microsoft-sql-server&logoColor=white)](https://www.microsoft.com/pt-br/sql-server/sql-server-downloads)
+[![Windows](https://img.shields.io/badge/Windows-7%2B_or_Server_2008%2B-green?logo=windows)](https://www.microsoft.com/windows/)
+
 
 Um sistema completo de monitoramento em tempo real do consumo de memória de múltiplos processos (Apache, Node.js e outros), desenvolvido em PowerShell para ambientes Windows.
 
@@ -19,7 +21,7 @@ Um sistema completo de monitoramento em tempo real do consumo de memória de mú
 
 ## 📋 Pré-requisitos
 
-- Windows Server 2008 R2 ou superior / Windows 7 ou superior
+- Windows Server 2008 ou superior / Windows 7 ou superior
 - PowerShell 2.0 ou superior
 - Processos a monitorar (Apache HTTP Server, Node.js, etc.)
 - Task Scheduler (incluído no Windows)
@@ -70,11 +72,16 @@ serviceMonitor/
 
 ### Sistema de Alertas
 
-O sistema utiliza um algoritmo inteligente de thresholds:
+O sistema utiliza um algoritmo inteligente de thresholds com novas funcionalidades:
 
 - **Threshold Dinâmico**: Aumenta automaticamente quando o consumo ultrapassa o limite
 - **Ajuste Automático**: Reduz o threshold após 1 hora sem ultrapassar o limite
 - **Notificações Escalonadas**: Evita spam de e-mails com lógica de intervalo
+- **Alertas por Intervalo**: Envia e-mails periódicos mesmo quando não ultrapassa o limite (configurável)
+- **Sistema de Cores Inteligente**: 
+  - 🔴 **Vermelho** (`upper`): Quando ultrapassa o limite definido
+  - 🟡 **Amarelo** (`warning`): Menor que o limite, mas maior que o último valor informado
+  - 🟢 **Verde** (`lower`): Menor que o limite e menor que o último valor informado
 
 ### Métricas Coletadas
 
@@ -119,6 +126,9 @@ Edite o arquivo `conf/config.psd1` com suas configurações:
     # Configurações de reinicialização automática (NOVO)
     AutoRestartEnabled = $true          # Habilitar reinicialização automática aos domingos
     LastSundayRestart = ''              # Data da última reinicialização (automática)
+    
+    # Configurações de notificações por e-mail (NOVO)
+    EmailNotificationIntervalHours = 4  # Intervalo em horas para enviar e-mail quando não ultrapassar o limite
     
     # Mapeamento de processos para serviços Windows (NOVO)
     ProcessServiceMap = @{
@@ -306,30 +316,28 @@ Embora este sistema tenha sido **desenvolvido inicialmente para monitoramento do
 - Customize os templates de e-mail para o contexto específico
 - Modifique as métricas coletadas conforme necessário
 
-## 📄 Licença e Uso
+## 📄 Licença
 
-**Licença de Uso Restrita - Somente Visualização e Execução**
+Este projeto é licenciado sob a **Apache License 2.0** - uma licença permissiva que permite uso comercial, modificação, distribuição, uso de patentes e uso privado.
 
 ### ✅ **PERMITIDO:**
-- Visualizar e estudar o código fonte
-- Executar o sistema em ambiente próprio
-- Usar para fins educacionais e de aprendizado
-- Realizar monitoramento em ambiente corporativo
-
-### ❌ **NÃO PERMITIDO:**
-- Modificar, editar ou alterar qualquer parte do código
-- Redistribuir o código (modificado ou não)
-- Criar trabalhos derivados
-- Usar para fins comerciais de redistribuição
-- Remover ou alterar avisos de copyright
+- ✓ Uso comercial
+- ✓ Modificação
+- ✓ Distribuição
+- ✓ Uso privado
+- ✓ Uso de patentes
 
 ### 📋 **CONDIÇÕES:**
-- O código deve ser usado "como está" (AS IS)
-- Nenhuma garantia é fornecida quanto ao funcionamento
-- O autor não se responsabiliza por danos ou perdas
-- Créditos ao autor original devem ser mantidos
+- Incluir aviso de licença e copyright
+- Documentar mudanças significativas
+- Incluir aviso de licença em versões distribuídas
 
-**Copyright © 2025 - Todos os direitos reservados**
+### ❌ **LIMITAÇÕES:**
+- Sem garantia
+- Sem responsabilidade do autor
+- Não inclui uso de marcas registradas
+
+**Copyright © 2025 BrunoQuiodetto**
 
 📄 **Para termos completos, consulte o arquivo [LICENSE](LICENSE)**
 
