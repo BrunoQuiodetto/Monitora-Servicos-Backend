@@ -1,3 +1,62 @@
+# Script para geração de relatórios de monitoramento
+# Arquivo: queryDatabaseReports.ps1
+# Consulta dados das tabelas Z111020 (memória) e Z112020 (reinicializações)
+
+<#
+.SYNOPSIS
+    Gera relatórios de monitoramento baseados nos dados coletados
+
+.DESCRIPTION
+    Script para consultar e gerar relatórios dos dados de monitoramento armazenados
+    nas tabelas Z111020 (dados de memória) e Z112020 (dados de reinicializações).
+    Suporta diferentes tipos de relatórios e filtros por período e processo.
+
+.PARAMETER ReportType
+    Tipo de relatório a gerar:
+    - "memory": Relatório de consumo de memória
+    - "restart": Relatório de reinicializações
+    - "summary": Resumo consolidado (padrão: "memory")
+
+.PARAMETER ProcessName
+    Nome do processo para filtrar o relatório (padrão: "httpd")
+
+.PARAMETER LastDays
+    Número de dias anteriores para incluir no relatório (padrão: 7)
+
+.PARAMETER ServerInstance
+    Instância do SQL Server (opcional, usa config se não fornecido)
+
+.PARAMETER Database
+    Nome do banco de dados (opcional, usa config se não fornecido)
+
+.PARAMETER Username
+    Usuário do banco (opcional, usa config se não fornecido)
+
+.PARAMETER Password
+    Senha do banco como SecureString (opcional, usa config se não fornecido)
+
+.PARAMETER IntegratedSecurity
+    Usar autenticação Windows (padrão: "True")
+
+.EXAMPLE
+    .\queryDatabaseReports.ps1 -ReportType "memory" -ProcessName "httpd" -LastDays 7
+
+.EXAMPLE
+    .\queryDatabaseReports.ps1 -ReportType "restart" -ProcessName "node" -LastDays 30
+
+.EXAMPLE
+    .\queryDatabaseReports.ps1 -ReportType "summary" -LastDays 14
+
+.OUTPUTS
+    Relatórios formatados exibidos no console e opcionalmente salvos em arquivos
+
+.NOTES
+    - Requer arquivo de configuração config.psd1 com dados do banco
+    - Usa as funções do database-connection.ps1
+    - Tabelas requeridas: Z111020, Z112020
+    - Suporta exportação para CSV e HTML
+#>
+
 # Script para consultar dados das tabelas Z111 e Z112
 # Relatórios de monitoramento do Apache
 

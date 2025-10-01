@@ -12,7 +12,7 @@ Um sistema completo de monitoramento em tempo real do consumo de memória de mú
 - **Monitoramento Contínuo**: Verifica o consumo de memória de múltiplos processos simultaneamente em tempo real
 - **Múltiplos Serviços**: Suporte nativo para Apache, Node.js e qualquer processo Windows
 - **Alertas Inteligentes**: Sistema de notificações por e-mail com thresholds configuráveis por processo
-- **Reinicialização Programada**: Reinício automático aos domingos às 3h da manhã
+- **Reinicialização Programada**: Reinício automático a cada 2 dias às 3h da manhã
 - **Suporte a Serviços Windows**: Pode reiniciar tanto processos quanto serviços Windows
 - **Registro de Logs**: Histórico completo de eventos e ações do sistema por processo
 - **Integração com Banco de Dados**: Armazenamento de métricas no SQL Server
@@ -124,8 +124,8 @@ Edite o arquivo `conf/config.psd1` com suas configurações:
     ProcessesToMonitor = @('httpd', 'node')  # Apache e Node.js
     
     # Configurações de reinicialização automática (NOVO)
-    AutoRestartEnabled = $true          # Habilitar reinicialização automática aos domingos
-    LastSundayRestart = ''              # Data da última reinicialização (automática)
+    AutoRestartEnabled = $true          # Habilitar reinicialização automática a cada 2 dias
+    LastAutoRestart = ''                # Data da última reinicialização automática (YYYY-MM-DD)
     
     # Configurações de notificações por e-mail (NOVO)
     EmailNotificationIntervalHours = 4  # Intervalo em horas para enviar e-mail quando não ultrapassar o limite
@@ -218,7 +218,7 @@ Get-ScheduledTask -TaskName "\MonitoraApache" | Get-ScheduledTaskInfo
 
 O sistema possui reinicialização automática programada:
 
-- **Quando**: Todos os domingos às 3h da manhã
+- **Quando**: A cada 2 dias às 3h da manhã (dia sim, dia não)
 - **Processos**: Todos os processos listados em `ProcessesToMonitor`
 - **Ativação**: Pode ser habilitada/desabilitada via `AutoRestartEnabled` no config
 - **Logs**: Registra todas as reinicializações automáticas
@@ -272,6 +272,33 @@ AutoRestartEnabled = $false
 | `NomeUsuario`  | string | Sim         |           | Nome do usuário que solicita o reinício       |
 | `Motivo`       | string | Sim         |           | Motivo do reinício                             |
 | `TipoReinicio` | string | Não         | "Forçado" | "Forçado", "Programado" ou "Teste"             |
+
+## 📚 Documentação das Funções
+
+Todos os scripts do sistema possuem documentação completa seguindo padrões PowerShell, incluindo:
+
+### 🔍 Documentação Inline Completa
+- **Synopsis**: Resumo da função
+- **Description**: Descrição detalhada do propósito e funcionamento
+- **Parameters**: Explicação de cada parâmetro com tipos e valores padrão
+- **Examples**: Exemplos práticos de uso
+- **Notes**: Informações importantes, dependências e restrições
+
+### 📖 Como Acessar a Documentação
+
+```powershell
+# Documentação do script principal
+Get-Help .\scripts\verificaMemoria.ps1 -Full
+
+# Documentação das funções de banco
+Get-Help .\scripts\database-connection.ps1 -Full
+
+# Documentação específica de uma função
+Get-Help New-SQLConnection -Full
+
+# Listar todas as funções disponíveis
+Get-Command -Module .\scripts\database-connection.ps1
+```
 
 ## ️🛡️ Segurança
 

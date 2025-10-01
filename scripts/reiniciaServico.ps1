@@ -1,3 +1,63 @@
+# Script para reinicialização controlada de serviços
+# Arquivo: reiniciaServico.ps1
+# Permite reiniciar processos/serviços com notificação por email e log completo
+
+<#
+.SYNOPSIS
+    Reinicia serviços de forma controlada com notificação e logging
+
+.DESCRIPTION
+    Script responsável por reinicializar processos ou serviços Windows de forma segura,
+    registrando todas as ações e enviando notificações por email. Suporta diferentes
+    tipos de reinicialização e mapeamento automático de processo para serviço.
+
+.PARAMETER NomeUsuario
+    Nome do usuário que solicitou a reinicialização (obrigatório)
+
+.PARAMETER Motivo
+    Descrição do motivo da reinicialização (obrigatório)
+
+.PARAMETER ProcessName
+    Nome do processo a ser reiniciado (padrão: "httpd")
+
+.PARAMETER ServiceName
+    Nome específico do serviço Windows (opcional, usa mapeamento automático se não fornecido)
+
+.PARAMETER TipoReinicio
+    Tipo de reinicialização: "Forçado", "Programado", "Manual" (padrão: "Forçado")
+
+.PARAMETER SMTPServer
+    Servidor SMTP para envio de emails (opcional, usa config se não fornecido)
+
+.PARAMETER SMTPPort
+    Porta do servidor SMTP (opcional, usa config se não fornecido)
+
+.PARAMETER EmailSender
+    Email remetente (opcional, usa config se não fornecido)
+
+.PARAMETER EmailPassword
+    Senha do email (opcional, usa config se não fornecido)
+
+.PARAMETER EmailRecipients
+    Lista de destinatários (opcional, usa config se não fornecido)
+
+.EXAMPLE
+    .\reiniciaServico.ps1 -NomeUsuario "João Silva" -Motivo "Consumo alto de memória" -ProcessName "httpd"
+
+.EXAMPLE
+    .\reiniciaServico.ps1 -NomeUsuario "Sistema" -Motivo "Manutenção programada" -ProcessName "node" -TipoReinicio "Programado"
+
+.EXAMPLE
+    .\reiniciaServico.ps1 -NomeUsuario "Admin" -Motivo "Falha na aplicação" -ProcessName "httpd" -ServiceName "Apache2.4.10Prod"
+
+.NOTES
+    - Requer arquivo de configuração config.psd1
+    - Envia emails com templates HTML personalizados
+    - Registra todas as ações no arquivo de log configurado
+    - Suporta mapeamento automático processo->serviço via ProcessServiceMap
+    - Inclui validações de segurança antes da reinicialização
+#>
+
 param (
     [Parameter(Mandatory = $true)]
     [string]$NomeUsuario,  # Nome de quem executou o script

@@ -1,3 +1,73 @@
+# Sistema de Monitoramento de Memória de Processos
+# Arquivo: verificaMemoria.ps1
+# Script principal do sistema de monitoramento contínuo
+
+<#
+.SYNOPSIS
+    Sistema completo de monitoramento de memória de processos com alertas automáticos
+
+.DESCRIPTION
+    Script principal que monitora continuamente o consumo de memória de processos específicos,
+    enviando alertas por email quando thresholds são ultrapassados ou em intervalos regulares.
+    Inclui funcionalidades de:
+    - Monitoramento contínuo de memória
+    - Alertas por threshold e por intervalo de tempo
+    - Sistema de cores para diferentes níveis de alerta
+    - Reinicialização automática programada a cada 2 dias
+    - Persistência de dados em banco SQL Server
+    - Rotação automática de logs
+    - Templates HTML personalizados para emails
+
+.PARAMETER SMTPServer
+    Servidor SMTP para envio de emails (opcional, usa config se não fornecido)
+
+.PARAMETER SMTPPort
+    Porta do servidor SMTP (opcional, usa config se não fornecido)
+
+.PARAMETER EmailSender
+    Email remetente (opcional, usa config se não fornecido)
+
+.PARAMETER EmailPassword
+    Senha do email (opcional, usa arquivo configurado se não fornecido)
+
+.PARAMETER EmailRecipients
+    Array de destinatários (opcional, usa config se não fornecido)
+
+.PARAMETER ProcessNames
+    Array de nomes de processos a monitorar (opcional, usa config se vazio)
+
+.PARAMETER ThresholdStep
+    Incremento em MB para próximo threshold após alerta (padrão: 500MB)
+
+.EXAMPLE
+    .\verificaMemoria.ps1
+
+.EXAMPLE
+    .\verificaMemoria.ps1 -ProcessNames @("httpd", "node") -ThresholdStep 1000
+
+.EXAMPLE
+    .\verificaMemoria.ps1 -EmailRecipients @("admin@empresa.com") -ThresholdStep 250
+
+.NOTES
+    Arquivos requeridos:
+    - config.psd1: Configurações do sistema
+    - log-functions.ps1: Funções de gerenciamento de logs
+    - database-connection.ps1: Funções de banco de dados
+    - insertMemoryData.ps1: Script de inserção de dados
+    - reiniciaServico.ps1: Script de reinicialização
+    - Templates HTML em /templates/
+    - Imagem do sistema em /src/
+
+    Funcionalidades principais:
+    - Verificação a cada 10 minutos
+    - Alertas por threshold dinâmico
+    - Notificações por intervalo configurável
+    - Sistema de cores: Verde (menor), Amarelo (intermediário), Vermelho (maior)
+    - Reinicialização automática a cada 2 dias às 3h
+    - Persistência completa em banco de dados
+    - Logs com rotação automática
+#>
+
 param (
     [string]$SMTPServer,
     [int]$SMTPPort,
@@ -40,14 +110,22 @@ $ProcessThresholds = @{}
 $ProcessLastNotificationTime = @{}
 $ProcessLastMemoryValue = @{}  # Nova variável para armazenar último valor de memória
 
-# Controle para reinicialização automática aos domingos às 3h
-$LastSundayRestart = [datetime]::MinValue
-if ($config.LastSundayRestart) {
+# Controle para reinicialização automática a cada 2 dias às 3h
+$LastAutoRestart = [datetime]::MinValue
+$ScriptStartDate = (Get-Date).Date
+
+if ($config.LastAutoRestart) {
     try {
-        $LastSundayRestart = [datetime]::Parse($config.LastSundayRestart)
+        $LastAutoRestart = [datetime]::Parse($config.LastAutoRestart)
     } catch {
-        $LastSundayRestart = [datetime]::MinValue
+        $LastAutoRestart = [datetime]::MinValue
     }
+}
+
+# Se nunca reiniciou, considera o dia anterior como última reinicialização
+# para que reinicie no primeiro dia que ligar
+if ($LastAutoRestart -eq [datetime]::MinValue) {
+    $LastAutoRestart = $ScriptStartDate.AddDays(-1)
 }
 
 # Inicializar controles para cada processo
@@ -61,6 +139,12 @@ foreach ($ProcessName in $ProcessNames) {
     $ProcessLastNotificationTime[$ProcessName] = Get-Date
     $ProcessLastMemoryValue[$ProcessName] = 0
 }
+
+# Importar funções auxiliares
+. (Join-Path -Path $ScriptDir -ChildPath "log-functions.ps1")
+
+# Verificar e rotacionar log se necessário
+Start-LogRotation -LogFilePath $LogFile
 
 # Enviar e-mail informando que o monitoramento foi iniciado
 $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -107,20 +191,31 @@ catch {
 }
 
 # Loop principal de monitoramento
+$LogRotationCounter = 0
 while ($true) {
-    # Verificar se é domingo às 3h para reinicialização automática
+    # Verificar rotação de log a cada 24 horas (144 ciclos de 10 min)
+    $LogRotationCounter++
+    if ($LogRotationCounter -ge 144) {
+        Start-LogRotation -LogFilePath $LogFile
+        $LogRotationCounter = 0
+    }
+    
+    # Verificar se deve fazer reinicialização automática a cada 2 dias às 3h
     $Now = Get-Date
-    if ($Now.DayOfWeek -eq "Sunday" -and $Now.Hour -eq 3 -and $Now.Minute -lt 10) {
+    if ($Now.Hour -eq 3 -and $Now.Minute -lt 10) {
         $Today = $Now.Date
-        if ($LastSundayRestart -lt $Today) {
+        $DaysSinceLastRestart = ($Today - $LastAutoRestart).Days
+        
+        # Reinicializar se passaram 2 ou mais dias desde a última reinicialização
+        if ($DaysSinceLastRestart -ge 2) {
             $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Add-Content -Path $LogFile -Value "$Timestamp - Iniciando reinicialização automática programada (Domingo 3h)"
+            Add-Content -Path $LogFile -Value "$Timestamp - Iniciando reinicialização automática programada (a cada 2 dias às 3h)"
             
             foreach ($ProcessName in $ProcessNames) {
                 try {
                     $RestartScript = Join-Path -Path $ScriptDir -ChildPath "reiniciaServico.ps1"
                     if (Test-Path $RestartScript) {
-                        & $RestartScript -ProcessName $ProcessName -NomeUsuario "Sistema" -Motivo "Reinicialização automática programada (Domingo 3h)" -TipoReinicio "Programado"
+                        & $RestartScript -ProcessName $ProcessName -NomeUsuario "Sistema" -Motivo "Reinicialização automática programada (a cada 2 dias)" -TipoReinicio "Programado"
                         Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Reinicialização automática executada"
                     }
                 } catch {
@@ -128,8 +223,50 @@ while ($true) {
                 }
             }
             
-            $LastSundayRestart = $Today
-            # Atualizar config com data da última reinicialização (opcional)
+            $LastAutoRestart = $Today
+            # Atualizar config com data da última reinicialização
+            $config.LastAutoRestart = $Today.ToString("yyyy-MM-dd")
+            
+            # Salvar a data atualizada no arquivo de configuração
+            try {
+                # Lê o arquivo atual (compatível com PowerShell antigo)
+                $configLines = Get-Content $configPath
+                $configContent = $configLines -join "`n"
+                
+                $newDateValue = $Today.ToString('yyyy-MM-dd')
+                $updated = $false
+                
+                # Processa linha por linha para substituir ou adicionar
+                $newConfigLines = @()
+                $foundLastAutoRestart = $false
+                
+                foreach ($line in $configLines) {
+                    if ($line -match "^\s*LastAutoRestart\s*=") {
+                        # Substitui linha existente
+                        $newConfigLines += "    LastAutoRestart = '$newDateValue'"
+                        $foundLastAutoRestart = $true
+                        $updated = $true
+                    } elseif ($line -match "^\s*}") {
+                        # Se chegou no final e não encontrou LastAutoRestart, adiciona antes do }
+                        if (-not $foundLastAutoRestart) {
+                            $newConfigLines += "    LastAutoRestart = '$newDateValue'"
+                            $updated = $true
+                        }
+                        $newConfigLines += $line
+                    } else {
+                        $newConfigLines += $line
+                    }
+                }
+                
+                if ($updated) {
+                    Set-Content -Path $configPath -Value $newConfigLines -Encoding UTF8
+                    Add-Content -Path $LogFile -Value "$Timestamp - Data da última reinicialização salva no config: $newDateValue"
+                } else {
+                    Add-Content -Path $LogFile -Value "$Timestamp - AVISO: Não foi possível atualizar LastAutoRestart no config"
+                }
+            } catch {
+                Add-Content -Path $LogFile -Value "$Timestamp - Erro ao salvar data da reinicialização no config: $_"
+            }
         }
     }
 
@@ -163,7 +300,7 @@ while ($true) {
                 $processControl.NotificationReason = "upper"
                 $processControl.FirstRun = $false
             }
-            elseif ($TotalMemoryMB -lt $processControl.NextNotificationLevel) {
+            elseif ($TotalMemoryMB -le $processControl.NextNotificationLevel) {
                 $elapsed = (Get-Date) - $ProcessLastNotificationTime[$ProcessName]
                 
                 # Verifica se deve enviar e-mail por intervalo de tempo (quando não ultrapassa limite)
@@ -184,13 +321,38 @@ while ($true) {
                 
                 # Ajustar threshold após o mesmo intervalo configurado (lógica corrigida)
                 if ($elapsed.TotalHours -ge $EmailNotificationIntervalHours) {
-                    $processControl.NextNotificationLevel = [math]::Round($TotalMemoryMB, 2)
+                    # Mantém uma pequena margem acima do valor atual para evitar travamento
+                    $processControl.NextNotificationLevel = [math]::Round($TotalMemoryMB + 0.1, 2)
                     Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] NextNotificationLevel ajustado para $($processControl.NextNotificationLevel) MB após $EmailNotificationIntervalHours hora(s) sem ultrapassar."
                 }
             }
             else {
-                $ProcessLastNotificationTime[$ProcessName] = Get-Date
-                $processControl.NotificationReason = "upper"
+                # Processo ultrapassou o threshold ou está na mesma faixa
+                $elapsed = (Get-Date) - $ProcessLastNotificationTime[$ProcessName]
+                
+                # Mesmo quando ultrapassa, verificar se deve enviar por intervalo
+                if ($elapsed.TotalHours -ge $EmailNotificationIntervalHours) {
+                    # Determinar o motivo da notificação com base na comparação de valores
+                    if ($lastMemoryValue -ne $null) {
+                        if ($TotalMemoryMB -lt $lastMemoryValue) {
+                            $processControl.NotificationReason = "lower"    # Verde: menor que anterior
+                        } elseif ($TotalMemoryMB -gt $lastMemoryValue) {
+                            $processControl.NotificationReason = "upper"    # Vermelho: maior que anterior  
+                        } else {
+                            $processControl.NotificationReason = "warning"  # Amarelo: igual ao anterior
+                        }
+                    } else {
+                        $processControl.NotificationReason = "upper"        # Primeira execução, considerar vermelho
+                    }
+                    
+                    $ProcessLastNotificationTime[$ProcessName] = Get-Date
+                    Add-Content -Path $LogFile -Value "$Timestamp - [$ProcessName] Enviando notificação por intervalo ($EmailNotificationIntervalHours horas). Motivo: $($processControl.NotificationReason)"
+                    
+                    # Marcar para envio de e-mail
+                    $ShouldSendIntervalEmail = $true
+                } else {
+                    $processControl.NotificationReason = "upper"
+                }
             }
             
             # Atualizar último valor de memória para comparação futura

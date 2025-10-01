@@ -9,7 +9,47 @@ param (
     [string]$IntegratedSecurity = "False"
 )
 
-# Função para criar conexão com SQL Server
+# Funções para conexão e operações com banco de dados SQL Server
+# Arquivo: database-connection.ps1
+# Utiliza ADO.NET nativo do PowerShell, sem dependências externas
+
+<#
+.SYNOPSIS
+    Cria uma nova conexão com banco de dados SQL Server
+
+.DESCRIPTION
+    Estabelece conexão com SQL Server usando ADO.NET nativo do PowerShell.
+    Suporta autenticação Windows (Integrated Security) ou SQL Server.
+    Inclui timeout de conexão configurável e tratamento de erros robusto.
+
+.PARAMETER ServerInstance
+    Nome ou endereço do servidor SQL Server (ex: "localhost", "server\instance", "server,port")
+
+.PARAMETER Database
+    Nome do banco de dados para conectar
+
+.PARAMETER Username
+    Nome de usuário para autenticação SQL Server (ignorado se IntegratedSecurity = True)
+
+.PARAMETER Password
+    Senha para autenticação SQL Server (ignorado se IntegratedSecurity = True)
+
+.PARAMETER IntegratedSecurity
+    Se "True", usa autenticação Windows. Se "False", usa autenticação SQL Server (padrão: "False")
+
+.OUTPUTS
+    System.Data.SqlClient.SqlConnection
+    Retorna objeto de conexão ativo ou $null em caso de erro
+
+.EXAMPLE
+    $conn = New-SQLConnection -ServerInstance "localhost" -Database "MyDB" -Username "user" -Password "pass"
+    
+.EXAMPLE
+    $conn = New-SQLConnection -ServerInstance "SERVER\INSTANCE" -Database "MyDB" -IntegratedSecurity "True"
+
+.NOTES
+    A conexão deve ser fechada manualmente usando Close-SQLConnection quando não precisar mais
+#>
 function New-SQLConnection {
     param (
         [string]$ServerInstance,
@@ -40,6 +80,37 @@ function New-SQLConnection {
     }
 }
 
+<#
+.SYNOPSIS
+    Executa uma consulta SQL de seleção (SELECT)
+
+.DESCRIPTION
+    Executa uma consulta SELECT no banco de dados e retorna os resultados em um DataTable.
+    Ideal para consultas que retornam dados. Para comandos que modificam dados, use Invoke-SQLCommand.
+
+.PARAMETER Connection
+    Objeto de conexão SQL Server ativo criado com New-SQLConnection
+
+.PARAMETER Query
+    Comando SQL SELECT a ser executado
+
+.OUTPUTS
+    System.Data.DataTable
+    Retorna DataTable com os resultados da consulta ou $null em caso de erro
+
+.EXAMPLE
+    $result = Invoke-SQLQuery -Connection $conn -Query "SELECT * FROM Users WHERE Active = 1"
+    foreach ($row in $result.Rows) {
+        Write-Host "User: $($row.Name)"
+    }
+
+.EXAMPLE
+    $data = Invoke-SQLQuery -Connection $conn -Query "SELECT COUNT(*) as Total FROM Orders"
+    $total = $data.Rows[0].Total
+
+.NOTES
+    A conexão deve estar aberta antes de executar a consulta
+#>
 # Função para executar consulta SQL (SELECT)
 function Invoke-SQLQuery {
     param (
@@ -61,6 +132,35 @@ function Invoke-SQLQuery {
     }
 }
 
+<#
+.SYNOPSIS
+    Executa comandos SQL que modificam dados (INSERT, UPDATE, DELETE)
+
+.DESCRIPTION
+    Executa comandos SQL que não retornam dados (INSERT, UPDATE, DELETE, CREATE, etc.).
+    Retorna o número de linhas afetadas pela operação.
+
+.PARAMETER Connection
+    Objeto de conexão SQL Server ativo criado com New-SQLConnection
+
+.PARAMETER Query
+    Comando SQL a ser executado (INSERT, UPDATE, DELETE, etc.)
+
+.OUTPUTS
+    System.Collections.Hashtable
+    Retorna hashtable com: Success (bool), RowsAffected (int), Query (string), Error (string)
+
+.EXAMPLE
+    $result = Invoke-SQLCommand -Connection $conn -Query "INSERT INTO Users (Name, Email) VALUES ('João', 'joao@email.com')"
+    if ($result.Success -and $result.RowsAffected -gt 0) { Write-Host "Usuário criado com sucesso!" }
+
+.EXAMPLE
+    $result = Invoke-SQLCommand -Connection $conn -Query "UPDATE Products SET Price = Price * 1.1 WHERE Category = 'Electronics'"
+    if ($result.Success) { Write-Host "Preços atualizados para $($result.RowsAffected) produtos" }
+
+.NOTES
+    Use esta função para comandos que modificam dados. Para consultas SELECT, use Invoke-SQLQuery
+#>
 # Função para executar comando SQL (INSERT, UPDATE, DELETE)
 function Invoke-SQLCommand {
     param (
@@ -72,15 +172,44 @@ function Invoke-SQLCommand {
         $Command = New-Object System.Data.SqlClient.SqlCommand($Query, $Connection)
         $RowsAffected = $Command.ExecuteNonQuery()
         
-        Write-Host "Comando executado com sucesso. Linhas afetadas: $RowsAffected" -ForegroundColor Green
-        return $RowsAffected
+        # Retorna objeto com informações detalhadas
+        return @{
+            Success = $true
+            RowsAffected = $RowsAffected
+            Query = $Query
+            Error = $null
+        }
     }
     catch {
-        Write-Error "Erro ao executar comando: $_"
-        return -1
+        # Retorna objeto com erro detalhado
+        return @{
+            Success = $false
+            RowsAffected = -1
+            Query = $Query
+            Error = $_.Exception.Message
+            SqlState = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+        }
     }
 }
 
+<#
+.SYNOPSIS
+    Fecha a conexão com o banco de dados SQL Server
+
+.DESCRIPTION
+    Fecha uma conexão ativa com SQL Server de forma segura.
+    Verifica se a conexão existe e está aberta antes de tentar fechar.
+
+.PARAMETER Connection
+    Objeto de conexão SQL Server a ser fechado
+
+.EXAMPLE
+    Close-SQLConnection -Connection $conn
+
+.NOTES
+    Sempre feche as conexões quando não precisar mais para liberar recursos do servidor
+    É uma boa prática fechar conexões em blocos try/finally ou using statements
+#>
 # Função para fechar conexão
 function Close-SQLConnection {
     param (

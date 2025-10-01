@@ -89,13 +89,16 @@ INSERT INTO Z112020 (
 "@
 
         # Executa o comando
-        $RowsAffected = Invoke-SQLCommand -Connection $Connection -Query $InsertQuery
+        $Result = Invoke-SQLCommand -Connection $Connection -Query $InsertQuery
+        $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\serviceMonitor_log.txt"
+        $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         
-        if ($RowsAffected -gt 0) { 
-            # Log da operação
-            $LogFile = Join-Path -Path $ScriptDir -ChildPath "..\log\apacheMonitor_log.txt"
-            $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            # Add-Content -Path $LogFile -Value "$Timestamp - BANCO: Dados de reinício inseridos na Z112 - Serviço: $ProcessName, Tipo: $TipoCode, Solicitante: $RequestedBy, Sistema: $SystemRestart"
+        if ($Result.Success -and $Result.RowsAffected -gt 0) { 
+            Add-Content -Path $LogFile -Value "$Timestamp - [DB] Dados de reinicialização salvos para [$ProcessName]: $TipoCode por $RequestedBy"
+        } elseif ($Result.Success -and $Result.RowsAffected -eq 0) {
+            Add-Content -Path $LogFile -Value "$Timestamp - [DB] AVISO: Nenhuma linha afetada na reinicialização de [$ProcessName]"
+        } else {
+            Add-Content -Path $LogFile -Value "$Timestamp - [DB] ERRO na reinicialização de [$ProcessName]: $($Result.Error)"
         }
         
         # Fecha a conexão
